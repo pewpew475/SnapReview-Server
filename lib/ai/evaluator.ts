@@ -1,5 +1,5 @@
-import { nvidiaClient, AI_CONFIG, getNvidiaClient } from './nvidia-client';
-import { constructEvaluationPrompt, SYSTEM_PROMPT } from './prompts';
+import { nvidiaClient, AI_CONFIG, getNvidiaClient } from './nvidia-client.js';
+import { constructEvaluationPrompt, SYSTEM_PROMPT } from './prompts.js';
 
 interface EvaluationResult {
   overall_score: number;
@@ -310,3 +310,4 @@ export function parseAIResponse(response: string): EvaluationResult {
 }
 
 export default { evaluateCodeStreaming, evaluateCodeComplete, parseAIResponse };
+
