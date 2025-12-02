@@ -2,12 +2,26 @@ import { Request, Response, NextFunction } from 'express';
 
 // Simple in-memory rate limiter (for production, use Redis)
 const requestCounts = new Map<string, { count: number; resetTime: number }>();
-
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
 const RATE_LIMIT_MAX_REQUESTS = 60; // 60 requests per minute
 
+function getClientId(req: Request): string {
+  const xff = req.headers['x-forwarded-for'];
+
+  if (Array.isArray(xff)) {
+    return xff[0] || req.ip;
+  }
+
+  if (typeof xff === 'string') {
+    // In case of "ip1, ip2, ..."
+    return xff.split(',')[0].trim();
+  }
+
+  return req.ip || 'unknown';
+}
+
 export function rateLimiter(req: Request, res: Response, next: NextFunction) {
-  const clientId = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+  const clientId = getClientId(req);
   const now = Date.now();
 
   // Clean up old entries
@@ -39,4 +53,3 @@ export function rateLimiter(req: Request, res: Response, next: NextFunction) {
   clientData.count++;
   next();
 }
-
