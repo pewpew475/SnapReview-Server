@@ -1,13 +1,10 @@
 // Load environment variables FIRST, before any other imports
-// This ensures env vars are available when modules are evaluated
 import dotenv from 'dotenv';
 import { existsSync } from 'node:fs';
 
-// Try .env.local first, then fall back to .env
 const envLocalResult = dotenv.config({ path: '.env.local' });
 const envResult = dotenv.config({ path: '.env' });
 
-// Debug: Log which env file was loaded (only in development)
 if (process.env.NODE_ENV !== 'production') {
   if (envLocalResult.error && !existsSync('.env.local')) {
     console.warn('⚠️  .env.local file not found. Using .env or system environment variables.');
@@ -35,99 +32,56 @@ import { rateLimiter } from './middleware/rateLimiter.js';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Initialize Supabase client
+// Supabase
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Debug: Show what Supabase variables are loaded (only in development)
 if (process.env.NODE_ENV !== 'production') {
   console.log('\n📋 Environment Variables Check:');
   console.log(`  VITE_SUPABASE_URL: ${process.env.VITE_SUPABASE_URL ? '✅ Set' : '❌ Missing'}`);
   console.log(`  SUPABASE_URL: ${process.env.SUPABASE_URL ? '✅ Set' : '❌ Missing'}`);
   console.log(`  SUPABASE_SERVICE_ROLE_KEY: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? '✅ Set' : '❌ Missing'}`);
-  console.log(`  NVIDIA_API_KEY: ${process.env.NVIDIA_API_KEY ? '✅ Set' : '❌ Missing'}`);
-
-  // Show all env vars that contain SUPABASE or VITE (for debugging)
-  const relevantVars = Object.keys(process.env)
-    .filter((key) => key.includes('SUPABASE') || key.includes('VITE'))
-    .sort();
-  if (relevantVars.length > 0) {
-    console.log('\n  Found these related environment variables:');
-    relevantVars.forEach((key) => {
-      const value = process.env[key];
-      const displayValue = value && value.length > 50 ? value.substring(0, 50) + '...' : value;
-      console.log(`    ${key}=${displayValue || '(empty)'}`);
-    });
-  }
   console.log('');
 }
 
 if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('❌ Missing Supabase configuration. Please set VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in environment variables.');
-  console.error(
-    `   Current values: supabaseUrl=${supabaseUrl ? 'set' : 'missing'}, serviceKey=${supabaseServiceKey ? 'set' : 'missing'}`
-  );
+  console.error('❌ Missing Supabase configuration. Please set VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
   process.exit(1);
 }
 
 export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-  },
+  auth: { persistSession: false, autoRefreshToken: false },
 });
 
-// --- CORS SETUP (important for Vercel + frontend) ---
-
-// Frontend URL on Vercel
-const frontendOrigin = process.env.VITE_APP_URL || 'https://snap-review-kappa.vercel.app';
-
-// Allow your deployed frontend and local dev
-const allowedOrigins = [
-  'http://localhost:8080',
-  frontendOrigin,
-].filter(Boolean);
-
+// 🔴 SUPER-SIMPLE CORS: always reflect Origin
 app.use(
   cors({
-    origin(origin, callback) {
-      // Allow non-browser requests (no Origin header)
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      console.warn(`❌ CORS blocked origin: ${origin}`);
-      return callback(new Error(`Origin ${origin} not allowed by CORS`));
-    },
-    credentials: true,
-  })
+    origin: true,        // reflect request origin
+    credentials: true,   // allow cookies / auth header
+  }),
 );
 
-// Ensure preflight requests also get CORS headers
-app.options('*', cors());
+// ensure preflight gets headers too
+app.options('*', cors({ origin: true, credentials: true }));
 
-// --- Other middleware ---
-
+// Body parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Request logging (development only)
+// Dev logging
 if (process.env.NODE_ENV !== 'production') {
-  app.use((req, res, next) => {
+  app.use((req, _res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
     next();
   });
 }
 
-// Health check
-app.get('/health', (req, res) => {
+// Health & test
+app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Test endpoint to verify routes are loaded
-app.get('/api/test', (req, res) => {
+app.get('/api/test', (_req, res) => {
   res.json({
     message: 'API is working',
     routes: {
@@ -140,35 +94,28 @@ app.get('/api/test', (req, res) => {
   });
 });
 
-// API Routes
+// Routes
 app.use('/api/tasks', rateLimiter, tasksRouter);
 app.use('/api/evaluate', rateLimiter, evaluateRouter);
 app.use('/api/evaluations', rateLimiter, evaluationsRouter);
 app.use('/api/payment', paymentRouter);
 app.use('/api/auth', authRouter);
 
-// Debug: Log registered routes (only in development)
+// Dev route log
 if (process.env.NODE_ENV !== 'production') {
   console.log('\n📡 Registered API Routes:');
-  console.log('  POST /api/tasks - Create task');
-  console.log('  GET  /api/tasks - Get user tasks');
-  console.log('  POST /api/evaluate - Complete evaluation');
-  console.log('  POST /api/evaluate/stream - Streaming evaluation');
-  console.log('  GET  /api/evaluations - Get all evaluations');
-  console.log('  GET  /api/evaluations/:id/preview - Get evaluation preview');
-  console.log('  GET  /api/evaluations/:id/full - Get full evaluation');
-  console.log('  POST /api/auth/signup - Sign up');
-  console.log('  POST /api/auth/signin - Sign in');
-  console.log('  POST /api/auth/signout - Sign out');
-  console.log('  GET  /api/auth/user - Get current user');
+  console.log('  POST /api/auth/signup');
+  console.log('  POST /api/auth/signin');
+  console.log('  POST /api/auth/signout');
+  console.log('  GET  /api/auth/user');
   console.log('');
 }
 
 // Error handling
 app.use(errorHandler);
 
-// 404 handler
-app.use((req, res) => {
+// 404
+app.use((_req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
