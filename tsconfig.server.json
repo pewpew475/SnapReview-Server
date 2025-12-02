@@ -17,7 +17,8 @@
     "types": ["node"],
     "allowSyntheticDefaultImports": true
   },
-  "include": ["server/**/*"],
+  "include": ["server", "lib"],
   "exclude": ["node_modules", "dist", "src"]
 }
+
 
