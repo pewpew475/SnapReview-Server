@@ -1,21 +1,21 @@
 {
   "name": "snapreview-server",
-  "private": true,
   "version": "1.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "tsx server/index.ts",
     "build": "tsc --project tsconfig.server.json",
     "start": "node dist/server/index.js"
   },
- "dependencies": {
-  "@supabase/supabase-js": "^2.86.0",
-  "cors": "^2.8.5",
-  "dotenv": "^16.4.5",
-  "express": "^4.21.1",
-  "razorpay": "^2.9.2",
-  "openai": "^6.9.1"
-}
+  "dependencies": {
+    "@supabase/supabase-js": "^2.86.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "razorpay": "^2.9.2",
+    "openai": "^6.9.1"
+  },
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^22.16.5",
