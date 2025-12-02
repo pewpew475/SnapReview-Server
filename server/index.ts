@@ -46,14 +46,14 @@ if (process.env.NODE_ENV !== 'production') {
   console.log(`  SUPABASE_URL: ${process.env.SUPABASE_URL ? '✅ Set' : '❌ Missing'}`);
   console.log(`  SUPABASE_SERVICE_ROLE_KEY: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? '✅ Set' : '❌ Missing'}`);
   console.log(`  NVIDIA_API_KEY: ${process.env.NVIDIA_API_KEY ? '✅ Set' : '❌ Missing'}`);
-  
+
   // Show all env vars that contain SUPABASE or VITE (for debugging)
   const relevantVars = Object.keys(process.env)
-    .filter(key => key.includes('SUPABASE') || key.includes('VITE'))
+    .filter((key) => key.includes('SUPABASE') || key.includes('VITE'))
     .sort();
   if (relevantVars.length > 0) {
     console.log('\n  Found these related environment variables:');
-    relevantVars.forEach(key => {
+    relevantVars.forEach((key) => {
       const value = process.env[key];
       const displayValue = value && value.length > 50 ? value.substring(0, 50) + '...' : value;
       console.log(`    ${key}=${displayValue || '(empty)'}`);
@@ -63,32 +63,57 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('❌ Missing Supabase configuration. Please set VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local');
-  console.error(`   Current values: supabaseUrl=${supabaseUrl ? 'set' : 'missing'}, serviceKey=${supabaseServiceKey ? 'set' : 'missing'}`);
+  console.error('❌ Missing Supabase configuration. Please set VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in environment variables.');
+  console.error(
+    `   Current values: supabaseUrl=${supabaseUrl ? 'set' : 'missing'}, serviceKey=${supabaseServiceKey ? 'set' : 'missing'}`
+  );
   process.exit(1);
 }
 
-export const supabase = createClient(
-  supabaseUrl,
-  supabaseServiceKey,
-  {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
+export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+});
+
+// --- CORS SETUP (important for Vercel + frontend) ---
+
+// Frontend URL on Vercel
+const frontendOrigin = process.env.VITE_APP_URL || 'https://snap-review-kappa.vercel.app';
+
+// Allow your deployed frontend and local dev
+const allowedOrigins = [
+  'http://localhost:8080',
+  frontendOrigin,
+].filter(Boolean);
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Allow non-browser requests (no Origin header)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      console.warn(`❌ CORS blocked origin: ${origin}`);
+      return callback(new Error(`Origin ${origin} not allowed by CORS`));
     },
-  }
+    credentials: true,
+  })
 );
 
-// Middleware
-const allowedOrigin = process.env.VITE_APP_URL || 'http://localhost:8080';
-app.use(cors({
-  origin: allowedOrigin,
-  credentials: true,
-}));
+// Ensure preflight requests also get CORS headers
+app.options('*', cors());
+
+// --- Other middleware ---
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Request logging (production-ready)
+// Request logging (development only)
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
@@ -103,7 +128,7 @@ app.get('/health', (req, res) => {
 
 // Test endpoint to verify routes are loaded
 app.get('/api/test', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'API is working',
     routes: {
       tasks: '/api/tasks',
@@ -154,4 +179,3 @@ app.listen(PORT, () => {
 });
 
 export default app;
-
