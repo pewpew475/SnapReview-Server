@@ -1,18 +1,9 @@
 {
   "version": 2,
-  "framework": "vite",
-  "buildCommand": "npm run build:client",
-  "outputDirectory": "dist",
-  "installCommand": "npm install",
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
+  "builds": [
+    { "src": "server/index.ts", "use": "@vercel/node" }
   ],
-  "env": {
-    "VITE_API_URL": "https://your-backend-url.com"
-  }
+  "routes": [
+    { "src": "/api/(.*)", "dest": "server/index.ts" }
+  ]
 }
-
-
